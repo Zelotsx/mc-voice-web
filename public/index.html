@@ -1,33 +1,71 @@
-<script>
-    const socket = io();
-    let players = {};
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sybtown Spatial Voice</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body style="background:#1a1a1a; color:white; font-family:sans-serif; text-align:center;">
+    <h1>🎤 Sybtown Proximity Voice</h1>
+    <input id="username" type="text" placeholder="ชื่อในเกม (ต้องตรงเป๊ะ)...">
+    <button id="startBtn">เชื่อมต่อไมค์</button>
+    <div id="status">สถานะ: ปิดอยู่</div>
+    <div id="audio-streams"></div>
 
-    socket.on('nearby_players', (allPlayers) => {
-        players = allPlayers;
-        calculateAudio();
-    });
+    <script>
+        const socket = io();
+        const peer = new Peer(); // สร้าง ID สำหรับส่งเสียง
+        let myStream;
+        let peers = {}; // เก็บการเชื่อมต่อกับเพื่อน
 
-    function calculateAudio() {
-        const myName = document.getElementById('username').value;
-        const me = Object.values(players).find(p => p.name === myName);
-        
-        if (!me) return;
-
-        Object.values(players).forEach(other => {
-            if (other.name !== myName) {
-                // สูตรหาความห่าง (Pythagoras)
-                const dist = Math.sqrt(
-                    Math.pow(me.x - other.x, 2) +
-                    Math.pow(me.z - other.z, 2)
-                );
-
-                // ปรับความดัง: ยิ่งไกล dist ยิ่งมาก ความดัง (volume) ยิ่งน้อย
-                let volume = 1 - (dist / 20); // ระยะ 20 บล็อกจะไม่ได้ยิน
-                if (volume < 0) volume = 0;
-                
-                // สั่งหรี่เสียงเพื่อนคนนี้ในระบบเสียง
-                setPlayerVolume(other.name, volume);
-            }
+        peer.on('open', (id) => {
+            console.log('My Peer ID: ' + id);
         });
-    }
-</script>
+
+        document.getElementById('startBtn').onclick = async () => {
+            const name = document.getElementById('username').value;
+            if(!name) return alert("ใส่ชื่อด้วย!");
+
+            myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            socket.emit('join-voice', { name: name, peerId: peer.id });
+            document.getElementById('status').innerText = "สถานะ: ออนไลน์";
+            
+            // รอรับสายจากคนอื่น
+            peer.on('call', call => {
+                call.answer(myStream);
+                const audio = document.createElement('audio');
+                call.on('stream', userStream => {
+                    addAudioStream(audio, userStream, call.peer);
+                });
+            });
+        };
+
+        socket.on('spatial-update', (allPlayers) => {
+            const myName = document.getElementById('username').value;
+            const me = Object.values(allPlayers).find(p => p.name === myName);
+            if (!me) return;
+
+            Object.values(allPlayers).forEach(other => {
+                if (other.name !== myName && other.peerId) {
+                    // คำนวณระยะห่าง (ไพทาโกรัส)
+                    const dist = Math.sqrt(Math.pow(me.x - other.x, 2) + Math.pow(me.z - other.z, 2));
+                    
+                    // ปรับเสียง: ระยะ 15 บล็อกจะเริ่มเบาลงจนเงียบ
+                    let vol = 1 - (dist / 15);
+                    if (vol < 0) vol = 0;
+                    
+                    const audioEl = document.getElementById(`audio-${other.peerId}`);
+                    if (audioEl) audioEl.volume = vol;
+                }
+            });
+        });
+
+        function addAudioStream(audio, stream, peerId) {
+            audio.id = `audio-${peerId}`;
+            audio.srcObject = stream;
+            audio.addEventListener('loadedmetadata', () => audio.play());
+            document.getElementById('audio-streams').append(audio);
+        }
+    </script>
+</body>
+</html>
