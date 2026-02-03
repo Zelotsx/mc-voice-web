@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MC Voice Web</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body { background: #1a1a1a; color: white; text-align: center; font-family: sans-serif; padding-top: 50px; }
+        input { padding: 10px; border-radius: 5px; border: none; width: 200px; margin-bottom: 10px; }
+        button { padding: 10px 20px; background: #2ecc71; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #status { margin-top: 20px; color: #aaa; }
+    </style>
+</head>
+<body>
+    <h1>🎤 MC Voice Connect</h1>
+    <input id="username" type="text" placeholder="ชื่อในเกมของคุณ...">
+    <br>
+    <button id="connectBtn">เชื่อมต่อไมค์</button>
+    <p id="status">สถานะ: รอการเชื่อมต่อ</p>
+
+    <script>
+        const socket = io();
+        const btn = document.getElementById('connectBtn');
+        const status = document.getElementById('status');
+
+        btn.onclick = async () => {
+            const name = document.getElementById('username').value;
+            if(!name) return alert("ใส่ชื่อด้วยเพื่อน!");
+            
+            try {
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+                socket.emit('join', name);
+                status.innerText = "สถานะ: ออนไลน์ (พับจอไปเล่นเกมได้เลย)";
+                status.style.color = "#2ecc71";
+                btn.disabled = true;
+                btn.style.background = "#95a5a6";
+            } catch (e) {
+                alert("กรุณาอนุญาตให้ใช้ไมค์ด้วยนะ");
+            }
+        };
+    </script>
+</body>
+</html>
