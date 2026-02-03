@@ -1,228 +1,33 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sybtown Voice Pro</title>
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: #1e293b; padding: 30px; border-radius: 20px; width: 350px; text-align: center; border: 2px solid #10b981; }
-        .btn { padding: 12px 20px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
-        .btn-mute { background: #ef4444; color: white; }
-        .btn-unmute { background: #3b82f6; color: white; }
-        #user-list { background: #0f172a; padding: 15px; border-radius: 10px; margin-top: 20px; text-align: left; max-height: 150px; overflow-y: auto; }
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h1 style="color: #10b981;">🎤 Sybtown Voice</h1>
-        <div id="setup">
-            <input id="username" type="text" placeholder="ใส่ชื่อในเกม..." style="width: 90%; padding: 10px; border-radius: 5px; border: none;">
-            <button onclick="startConnect()" class="btn" style="background: #10b981; color: white;">เชื่อมต่อเสียง</button>
-        </div>
-        <div id="controls" style="display:none;">
-            <button id="muteBtn" onclick="toggleMute()" class="btn btn-mute">ปิดไมค์ (Mute)</button>
-            <p id="status" style="color: #10b981; margin-top: 10px;">● ออนไลน์</p>
-        </div>
-        <div id="user-list">
-            <small style="color: #64748b;">ผู้เล่นที่ออนไลน์:</small>
-            <div id="players">ยังไม่มีคนออนไลน์</div>
-        </div>
-    </div>
+<script>
+    const socket = io();
+    let players = {};
 
-    <script>
-        const socket = io();
-        let myStream;
-        let isMuted = false;
+    socket.on('nearby_players', (allPlayers) => {
+        players = allPlayers;
+        calculateAudio();
+    });
 
-        async function startConnect() {
-            const name = document.getElementById('username').value;
-            if(!name) return alert("ใส่ชื่อด้วยเพื่อน!");
-            
-            myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            document.getElementById('setup').style.display = 'none';
-            document.getElementById('controls').style.display = 'block';
-            
-            socket.emit('join', name);
-            // แสดงชื่อตัวเองในลิสต์
-            updatePlayerList(name);
-        }
-
-        function toggleMute() {
-            isMuted = !isMuted;
-            myStream.getAudioTracks()[0].enabled = !isMuted;
-            const btn = document.getElementById('muteBtn');
-            const status = document.getElementById('status');
-            
-            btn.innerText = isMuted ? "เปิดไมค์ (Unmute)" : "ปิดไมค์ (Mute)";
-            btn.className = isMuted ? "btn btn-unmute" : "btn btn-mute";
-            status.innerText = isMuted ? "○ ปิดไมค์ชั่วคราว" : "● ออนไลน์";
-            status.style.color = isMuted ? "#ef4444" : "#10b981";
-        }
-
-        socket.on('user-connected', (name) => {
-            updatePlayerList(name);
-        });
-
-        function updatePlayerList(name) {
-            const list = document.getElementById('players');
-            if(list.innerText.includes("ยังไม่มีคนออนไลน์")) list.innerHTML = "";
-            list.innerHTML += `<div>🔊 ${name}</div>`;
-        }
-    </script>
-</body>
-</html>            <input id="username" type="text" placeholder="ระบุชื่อในเกมของคุณ...">
-            <button id="connectBtn" class="btn btn-primary">
-                <i class="fas fa-sign-in-alt"></i> เชื่อมต่อระบบเสียง
-            </button>
-        </div>
-
-        <div id="control-area" class="controls">
-            <button id="muteBtn" class="btn btn-mute">
-                <i class="fas fa-microphone-slash"></i> ปิดไมค์
-            </button>
-            <button id="unmuteBtn" class="btn btn-unmute">
-                <i class="fas fa-microphone"></i> เปิดไมค์
-            </button>
-        </div>
-
-        <div class="status-area">
-            <p id="status-text">สถานะ: รอยืนยันตัวตน</p>
-        </div>
-
-        <div class="user-list">
-            <p style="font-size: 12px; color: #64748b; margin-bottom: 10px;">ผู้เล่นที่ออนไลน์อยู่:</p>
-            <div id="active-players">
-                <p style="color: #475569; font-size: 13px;">ยังไม่มีใครออนไลน์ขณะนี้</p>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const socket = io();
-        const connectBtn = document.getElementById('connectBtn');
-        const muteBtn = document.getElementById('muteBtn');
-        const unmuteBtn = document.getElementById('unmuteBtn');
-        const statusText = document.getElementById('status-text');
-        const activePlayers = document.getElementById('active-players');
-        const loginArea = document.getElementById('login-area');
-        const controlArea = document.getElementById('control-area');
+    function calculateAudio() {
+        const myName = document.getElementById('username').value;
+        const me = Object.values(players).find(p => p.name === myName);
         
-        let localStream;
+        if (!me) return;
 
-        connectBtn.onclick = async () => {
-            const name = document.getElementById('username').value;
-            if(!name) return alert("ระบุชื่อด้วยเพื่อน!");
-            
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                socket.emit('join', name);
+        Object.values(players).forEach(other => {
+            if (other.name !== myName) {
+                // สูตรหาความห่าง (Pythagoras)
+                const dist = Math.sqrt(
+                    Math.pow(me.x - other.x, 2) +
+                    Math.pow(me.z - other.z, 2)
+                );
+
+                // ปรับความดัง: ยิ่งไกล dist ยิ่งมาก ความดัง (volume) ยิ่งน้อย
+                let volume = 1 - (dist / 20); // ระยะ 20 บล็อกจะไม่ได้ยิน
+                if (volume < 0) volume = 0;
                 
-                loginArea.style.display = "none";
-                controlArea.style.display = "grid";
-                statusText.innerText = "● ออนไลน์: " + name;
-                statusText.style.color = "#10b981";
-            } catch (e) {
-                alert("กรุณาอนุญาตการเข้าถึงไมค์ในเบราว์เซอร์ด้วยนะครับ");
+                // สั่งหรี่เสียงเพื่อนคนนี้ในระบบเสียง
+                setPlayerVolume(other.name, volume);
             }
-        };
-
-        muteBtn.onclick = () => {
-            localStream.getAudioTracks()[0].enabled = false;
-            muteBtn.style.display = "none";
-            unmuteBtn.style.display = "flex";
-            statusText.innerText = "● ปิดใช้งานไมค์ชั่วคราว";
-            statusText.style.color = "#ef4444";
-        };
-
-        unmuteBtn.onclick = () => {
-            localStream.getAudioTracks()[0].enabled = true;
-            unmuteBtn.style.display = "none";
-            muteBtn.style.display = "flex";
-            statusText.innerText = "● ออนไลน์ (ไมค์เปิด)";
-            statusText.style.color = "#10b981";
-        };
-
-        socket.on('user-connected', (name) => {
-            activePlayers.innerHTML = `<div class="user-item"><div class="dot"></div><span>${name}</span></div>`;
         });
-    </script>
-</body>
-</html>    </div>
-
-    <script>
-        const socket = io();
-        const connectBtn = document.getElementById('connectBtn');
-        const muteBtn = document.getElementById('muteBtn');
-        const unmuteBtn = document.getElementById('unmuteBtn');
-        const status = document.getElementById('status');
-        const activePlayers = document.getElementById('active-players');
-        
-        let localStream;
-
-        connectBtn.onclick = async () => {
-            const name = document.getElementById('username').value;
-            if(!name) return alert("กรุณาใส่ชื่อก่อนนะเพื่อน!");
-            
-            try {
-                // ขออนุญาตใช้ไมค์
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                socket.emit('join', name);
-                
-                // สลับปุ่มแสดงผล
-                status.innerText = "● ออนไลน์: " + name;
-                status.style.color = "#2ecc71";
-                connectBtn.style.display = "none";
-                document.getElementById('username').style.display = "none";
-                muteBtn.style.display = "inline-block";
-                
-                console.log("Sybtown Voice Active!");
-            } catch (e) {
-                alert("เปิดไมค์ไม่ได้! กรุณากดอนุญาตสิทธิ์การใช้ไมค์ในบราวเซอร์ด้วยครับ");
-            }
-        };
-
-        // ระบบปิดไมค์
-        muteBtn.onclick = () => {
-            localStream.getAudioTracks()[0].enabled = false;
-            muteBtn.style.display = "none";
-            unmuteBtn.style.display = "inline-block";
-            status.innerText = "● ปิดไมค์ชั่วคราว";
-            status.style.color = "#e74c3c";
-        };
-
-        // ระบบเปิดไมค์
-        unmuteBtn.onclick = () => {
-            localStream.getAudioTracks()[0].enabled = true;
-            unmuteBtn.style.display = "none";
-            muteBtn.style.display = "inline-block";
-            status.innerText = "● ออนไลน์ (เปิดไมค์)";
-            status.style.color = "#2ecc71";
-        };
-
-        // อัปเดตรายชื่อคนออนไลน์
-        socket.on('user-connected', (name) => {
-            activePlayers.innerHTML = "<div>🔊 " + name + " กำลังอยู่ในสาย</div>";
-        });
-    </script>
-</body>
-</html>                // หมายเหตุ: ระบบ Peer-to-Peer เต็มรูปแบบต้องใช้ PeerJS 
-                // แต่ตอนนี้เราทำให้ทุกคนในเซิร์ฟเวอร์ได้ยินเสียงกันก่อน
-                console.log("Mic Active for " + name);
-                
-            } catch (e) {
-                alert("ต้องกดอนุญาตให้ใช้ไมค์ถึงจะคุยได้นะเพื่อน");
-            }
-        };
-
-        // รับสัญญาณเสียงจากคนอื่น (แสดงผลชื่อคนคุย)
-        socket.on('user-connected', (userName) => {
-            const p = document.createElement('p');
-            p.innerText = "🔊 " + userName + " กำลังออนไลน์...";
-            audioContainer.appendChild(p);
-        });
-    </script>
-</body>
-</html>
+    }
+</script>
