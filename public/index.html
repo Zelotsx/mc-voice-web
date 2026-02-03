@@ -1,40 +1,117 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sybtown Voice Connect</title>
     <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background: #1a1a1a; color: white; text-align: center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding-top: 40px; }
-        .container { background: #2c3e50; width: 320px; margin: 0 auto; padding: 20px; border-radius: 15px; border: 2px solid #27ae60; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
-        h1 { color: #2ecc71; font-size: 24px; margin-bottom: 20px; }
-        input { padding: 12px; border-radius: 8px; border: none; width: 80%; margin-bottom: 15px; font-size: 16px; }
-        button { padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s; margin: 5px; }
-        .btn-join { background: #2ecc71; color: white; width: 90%; }
-        .btn-mute { background: #e74c3c; color: white; display: none; }
-        .btn-unmute { background: #3498db; color: white; display: none; }
-        #status { margin-top: 15px; font-size: 14px; color: #bdc3c7; }
-        #user-list { margin-top: 20px; text-align: left; background: #34495e; padding: 10px; border-radius: 8px; font-size: 14px; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Kanit', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .card { background: #1e293b; width: 90%; max-width: 400px; padding: 30px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); border: 1px solid #334155; text-align: center; }
+        h1 { font-size: 24px; margin-bottom: 8px; color: #10b981; }
+        .subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 25px; }
+        input { width: 100%; padding: 14px; background: #0f172a; border: 1px solid #334155; border-radius: 12px; color: white; font-size: 16px; margin-bottom: 15px; outline: none; transition: 0.3s; }
+        input:focus { border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .btn-primary { background: #10b981; color: white; }
+        .btn-primary:hover { background: #059669; }
+        .controls { display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .btn-mute { background: #ef4444; color: white; }
+        .btn-unmute { background: #3b82f6; color: white; display: none; }
+        .status-area { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 12px; font-size: 14px; }
+        #status-text { color: #94a3b8; }
+        .user-list { margin-top: 20px; text-align: left; }
+        .user-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 14px; }
+        .dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎤 Sybtown Voice</h1>
-        <input id="username" type="text" placeholder="พิมพ์ชื่อในเกม...">
-        <br>
-        <button id="connectBtn" class="btn-join">เข้าสู่ระบบเสียง</button>
+    <div class="card">
+        <i class="fas fa-microphone-lines" style="font-size: 40px; color: #10b981; margin-bottom: 15px;"></i>
+        <h1>Sybtown Voice</h1>
+        <p class="subtitle">ระบบสื่อสารเสียงภายในเซิร์ฟเวอร์</p>
         
-        <div id="controls">
-            <button id="muteBtn" class="btn-mute">ปิดไมค์ (Mute)</button>
-            <button id="unmuteBtn" class="btn-unmute">เปิดไมค์ (Unmute)</button>
+        <div id="login-area">
+            <input id="username" type="text" placeholder="ระบุชื่อในเกมของคุณ...">
+            <button id="connectBtn" class="btn btn-primary">
+                <i class="fas fa-sign-in-alt"></i> เชื่อมต่อระบบเสียง
+            </button>
         </div>
 
-        <p id="status">สถานะ: รอการเชื่อมต่อ</p>
-        
-        <div id="user-list">
-            <strong>คนในห้องคุย:</strong>
-            <div id="active-players">ยังไม่มีคนออนไลน์</div>
+        <div id="control-area" class="controls">
+            <button id="muteBtn" class="btn btn-mute">
+                <i class="fas fa-microphone-slash"></i> ปิดไมค์
+            </button>
+            <button id="unmuteBtn" class="btn btn-unmute">
+                <i class="fas fa-microphone"></i> เปิดไมค์
+            </button>
+        </div>
+
+        <div class="status-area">
+            <p id="status-text">สถานะ: รอยืนยันตัวตน</p>
+        </div>
+
+        <div class="user-list">
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 10px;">ผู้เล่นที่ออนไลน์อยู่:</p>
+            <div id="active-players">
+                <p style="color: #475569; font-size: 13px;">ยังไม่มีใครออนไลน์ขณะนี้</p>
+            </div>
         </div>
     </div>
+
+    <script>
+        const socket = io();
+        const connectBtn = document.getElementById('connectBtn');
+        const muteBtn = document.getElementById('muteBtn');
+        const unmuteBtn = document.getElementById('unmuteBtn');
+        const statusText = document.getElementById('status-text');
+        const activePlayers = document.getElementById('active-players');
+        const loginArea = document.getElementById('login-area');
+        const controlArea = document.getElementById('control-area');
+        
+        let localStream;
+
+        connectBtn.onclick = async () => {
+            const name = document.getElementById('username').value;
+            if(!name) return alert("ระบุชื่อด้วยเพื่อน!");
+            
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                socket.emit('join', name);
+                
+                loginArea.style.display = "none";
+                controlArea.style.display = "grid";
+                statusText.innerText = "● ออนไลน์: " + name;
+                statusText.style.color = "#10b981";
+            } catch (e) {
+                alert("กรุณาอนุญาตการเข้าถึงไมค์ในเบราว์เซอร์ด้วยนะครับ");
+            }
+        };
+
+        muteBtn.onclick = () => {
+            localStream.getAudioTracks()[0].enabled = false;
+            muteBtn.style.display = "none";
+            unmuteBtn.style.display = "flex";
+            statusText.innerText = "● ปิดใช้งานไมค์ชั่วคราว";
+            statusText.style.color = "#ef4444";
+        };
+
+        unmuteBtn.onclick = () => {
+            localStream.getAudioTracks()[0].enabled = true;
+            unmuteBtn.style.display = "none";
+            muteBtn.style.display = "flex";
+            statusText.innerText = "● ออนไลน์ (ไมค์เปิด)";
+            statusText.style.color = "#10b981";
+        };
+
+        socket.on('user-connected', (name) => {
+            activePlayers.innerHTML = `<div class="user-item"><div class="dot"></div><span>${name}</span></div>`;
+        });
+    </script>
+</body>
+</html>    </div>
 
     <script>
         const socket = io();
