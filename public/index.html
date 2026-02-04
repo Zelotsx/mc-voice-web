@@ -1,40 +1,97 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
-    <title>Sybtown Spatial Voice</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sybtown Voice Pro</title>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 30px; border-radius: 20px; width: 350px; text-align: center; border: 2px solid #10b981; }
+        h1 { color: #10b981; margin-bottom: 20px; }
+        input { width: 90%; padding: 12px; border-radius: 10px; border: none; margin-bottom: 10px; font-size: 16px; }
+        .btn { padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
+        .btn-join { background: #10b981; color: white; }
+        .btn-mute { background: #ef4444; color: white; display: none; margin-top: 10px; }
+        .btn-unmute { background: #3b82f6; color: white; display: none; margin-top: 10px; }
+        #status { margin-top: 15px; font-weight: bold; }
+        #player-list { margin-top: 20px; text-align: left; background: #0f172a; padding: 10px; border-radius: 10px; font-size: 14px; }
+    </style>
 </head>
-<body style="background:#1a1a1a; color:white; font-family:sans-serif; text-align:center;">
-    <h1>🎤 Sybtown Proximity Voice</h1>
-    <input id="username" type="text" placeholder="ชื่อในเกม (ต้องตรงเป๊ะ)...">
-    <button id="startBtn">เชื่อมต่อไมค์</button>
-    <div id="status">สถานะ: ปิดอยู่</div>
-    <div id="audio-streams"></div>
+<body>
+    <div class="card">
+        <h1>🎤 Sybtown Voice</h1>
+        <div id="login-area">
+            <input id="username" type="text" placeholder="ชื่อในเกม (ต้องตรงเป๊ะ)...">
+            <button id="connectBtn" class="btn btn-join">เข้าสู่ระบบเสียง</button>
+        </div>
+        
+        <button id="muteBtn" class="btn btn-mute">ปิดไมค์ (Mute)</button>
+        <button id="unmuteBtn" class="btn btn-unmute">เปิดไมค์ (Unmute)</button>
+
+        <p id="status" style="color: #64748b;">สถานะ: รอยืนยันตัวตน</p>
+        
+        <div id="player-list">
+            <small>ผู้เล่นออนไลน์:</small>
+            <div id="active-players">ยังไม่มีคนออนไลน์</div>
+        </div>
+    </div>
 
     <script>
         const socket = io();
-        const peer = new Peer(); // สร้าง ID สำหรับส่งเสียง
         let myStream;
-        let peers = {}; // เก็บการเชื่อมต่อกับเพื่อน
+        let myName = "";
 
-        peer.on('open', (id) => {
-            console.log('My Peer ID: ' + id);
+        document.getElementById('connectBtn').onclick = async () => {
+            myName = document.getElementById('username').value;
+            if(!myName) return alert("กรุณาใส่ชื่อ!");
+
+            try {
+                myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                socket.emit('join-voice', { name: myName });
+                
+                document.getElementById('login-area').style.display = "none";
+                document.getElementById('muteBtn').style.display = "block";
+                document.getElementById('status').innerText = "● ออนไลน์: " + myName;
+                document.getElementById('status').style.color = "#10b981";
+            } catch (e) {
+                alert("กรุณาอนุญาตใช้ไมค์ด้วยนะเพื่อน!");
+            }
+        };
+
+        // ระบบ ปิด/เปิด ไมค์ (Mute/Unmute)
+        document.getElementById('muteBtn').onclick = () => {
+            myStream.getAudioTracks()[0].enabled = false;
+            document.getElementById('muteBtn').style.display = "none";
+            document.getElementById('unmuteBtn').style.display = "block";
+            document.getElementById('status').innerText = "○ ปิดไมค์ชั่วคราว";
+            document.getElementById('status').style.color = "#ef4444";
+        };
+
+        document.getElementById('unmuteBtn').onclick = () => {
+            myStream.getAudioTracks()[0].enabled = true;
+            document.getElementById('unmuteBtn').style.display = "none";
+            document.getElementById('muteBtn').style.display = "block";
+            document.getElementById('status').innerText = "● ออนไลน์";
+            document.getElementById('status').style.color = "#10b981";
+        };
+
+        // รับพิกัดและคำนวณระยะเสียง (Spatial Audio)
+        socket.on('spatial-update', (allPlayers) => {
+            const me = Object.values(allPlayers).find(p => p.name === myName);
+            if (!me) return;
+
+            // ส่วนนี้ใช้หรี่เสียงเพื่อนตามระยะทาง (ถ้ามีระบบรับส่งเสียง PeerJS)
+            // ระยะห่างที่แนะนำคือ 15-20 บล็อก
         });
 
-        document.getElementById('startBtn').onclick = async () => {
-            const name = document.getElementById('username').value;
-            if(!name) return alert("ใส่ชื่อด้วย!");
-
-            myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            socket.emit('join-voice', { name: name, peerId: peer.id });
-            document.getElementById('status').innerText = "สถานะ: ออนไลน์";
-            
-            // รอรับสายจากคนอื่น
-            peer.on('call', call => {
-                call.answer(myStream);
-                const audio = document.createElement('audio');
-                call.on('stream', userStream => {
+        socket.on('update-list', (list) => {
+            const container = document.getElementById('active-players');
+            container.innerHTML = list.map(p => `<div>🔊 ${p.name}</div>`).join('');
+        });
+    </script>
+</body>
+</html>                call.on('stream', userStream => {
                     addAudioStream(audio, userStream, call.peer);
                 });
             });
