@@ -2,16 +2,19 @@ const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
+const path = require('path');
 
-let players = {}; // เก็บข้อมูล { socketId: { name, x, y, z, peerId } }
+app.use(express.static('public'));
+
+let players = {}; 
 
 io.on('connection', (socket) => {
     socket.on('join-voice', (data) => {
-        players[socket.id] = { name: data.name, peerId: data.peerId, x: 0, y: 0, z: 0 };
-        io.emit('update-player-list', Object.values(players));
+        players[socket.id] = { name: data.name, x: 0, y: 0, z: 0 };
+        io.emit('update-list', Object.values(players));
     });
 
-    // รับพิกัดจาก Bridge และส่งต่อไปยังทุกคน
+    // รับพิกัดจาก Bridge แล้วส่งกระจายให้ทุกคนในเว็บ
     socket.on('bridge-pos-update', (data) => {
         for (let id in players) {
             if (players[id].name === data.name) {
@@ -25,8 +28,9 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         delete players[socket.id];
-        io.emit('update-player-list', Object.values(players));
+        io.emit('update-list', Object.values(players));
     });
 });
 
-http.listen(process.env.PORT || 3000, () => console.log('Server running...'));
+const PORT = process.env.PORT || 3000;
+http.listen(PORT, () => console.log('Sybtown Server Online!'));
