@@ -8,179 +8,185 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #0f172a; color: white; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+        body { 
+            background: #0f172a; 
+            color: white; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            overflow: hidden; 
+        }
         
         .card { 
-            background: #1e293b; padding: 30px; border-radius: 24px; width: 360px; 
-            text-align: center; border: 1px solid #334155; 
+            background: #1e293b; 
+            padding: 30px; 
+            border-radius: 24px; 
+            width: 90%; 
+            max-width: 400px; 
+            text-align: center; 
+            border: 1px solid #334155; 
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-            position: relative; z-index: 10; 
+            position: relative; 
+            z-index: 10; 
         }
 
-        h1 { color: #10b981; margin-bottom: 5px; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+        /* ส่วน Visualizer (วงกลมไฟกระพริบ) */
+        .mic-wrapper {
+            width: 80px; height: 80px; 
+            background: #0f172a; 
+            border-radius: 50%; 
+            margin: 0 auto 20px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            border: 2px solid #334155;
+            transition: all 0.1s ease;
+        }
+        .mic-icon { font-size: 32px; }
+        .speaking {
+            border-color: #10b981;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+            transform: scale(1.1);
+        }
+
+        h1 { color: #10b981; margin-bottom: 5px; font-size: 24px; font-weight: 800; }
         .subtitle { color: #64748b; font-size: 13px; margin-bottom: 25px; }
 
         input { 
             width: 100%; padding: 14px; border-radius: 12px; border: 1px solid #334155; 
             margin-bottom: 15px; font-size: 16px; background: #0f172a; color: white; outline: none; transition: 0.3s;
         }
-        input:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
+        input:focus { border-color: #10b981; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); }
 
         .btn { 
             padding: 14px; border: none; border-radius: 12px; cursor: pointer; 
             font-weight: 700; width: 100%; transition: all 0.2s; font-size: 16px; margin-bottom: 10px;
-            display: flex; justify-content: center; align-items: center; gap: 8px;
         }
         .btn:active { transform: scale(0.98); }
         .btn-join { background: #10b981; color: white; }
-        .btn-join:hover { background: #059669; }
         .btn-mute { background: #ef4444; color: white; }
         .btn-unmute { background: #3b82f6; color: white; }
-        .btn-quit { background: #334155; color: #94a3b8; font-size: 14px; margin-top: 10px; }
-
-        /* Visualizer (วงกลมเด้งตอนพูด) */
-        .mic-visualizer {
-            width: 80px; height: 80px; background: #1e293b; border-radius: 50%;
-            margin: 0 auto 20px; display: flex; justify-content: center; align-items: center;
-            border: 2px solid #334155; position: relative; transition: 0.2s;
-        }
-        .mic-icon { font-size: 30px; color: #64748b; }
-        .speaking { border-color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.5); }
-        .speaking .mic-icon { color: #10b981; }
+        .btn-quit { background: #334155; color: #94a3b8; font-size: 14px; margin-top: 15px; }
 
         #player-list { 
             margin-top: 20px; text-align: left; background: #0f172a; padding: 15px; 
             border-radius: 12px; font-size: 13px; max-height: 150px; overflow-y: auto; border: 1px solid #334155;
         }
-        .player-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .player-item { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; border-bottom: 1px solid #1e293b; padding-bottom: 5px; }
         .dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; }
         
-        .controls { display: none; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
+
     <div class="card">
-        <div id="visualizer" class="mic-visualizer">
-            <span class="mic-icon">🎤</span>
+        <div id="visualizer" class="mic-wrapper">
+            <div class="mic-icon">🎤</div>
         </div>
 
         <h1>Sybtown Voice</h1>
-        <p class="subtitle">ระบบสื่อสารระยะไกลระดับ Pro</p>
+        <p class="subtitle">ระบบสื่อสารระดับมืออาชีพ</p>
         
         <div id="login-area">
-            <input id="username" type="text" placeholder="ชื่อในเกม (ต้องตรงกับ Xbox)...">
+            <input id="username" type="text" placeholder="ระบุชื่อในเกม (Xbox ID)...">
             <button id="connectBtn" class="btn btn-join">เชื่อมต่อระบบเสียง</button>
         </div>
         
-        <div id="control-area" class="controls">
+        <div id="control-area" class="hidden">
             <button id="muteBtn" class="btn btn-mute">ปิดไมค์ (Mute)</button>
-            <button id="unmuteBtn" class="btn btn-unmute" style="display:none;">เปิดไมค์ (Unmute)</button>
-            <p id="status" style="color: #10b981; font-weight: bold; margin: 10px 0;">● ออนไลน์</p>
-            <button id="quitBtn" class="btn btn-quit">ยกเลิกการเชื่อมต่อ</button>
-        </div>
-        
-        <div id="player-list">
-            <p style="color: #64748b; margin-bottom: 8px; font-size: 11px; text-transform: uppercase;">ONLINE PLAYERS</p>
-            <div id="active-players">ยังไม่มีคนออนไลน์</div>
+            <button id="unmuteBtn" class="btn btn-unmute hidden">เปิดไมค์ (Unmute)</button>
+            
+            <p id="status" style="color: #10b981; font-weight: bold; margin: 15px 0;">● ออนไลน์</p>
+            
+            <div id="player-list">
+                <p style="color: #64748b; margin-bottom: 8px; font-size: 11px;">ผู้เล่นที่ออนไลน์:</p>
+                <div id="active-players">ยังไม่มีคนออนไลน์</div>
+            </div>
+
+            <button id="quitBtn" class="btn btn-quit">ออกจากระบบ</button>
         </div>
     </div>
 
-    <div id="audio-container"></div>
+    <div id="audio-container" style="display:none;"></div>
 
     <script>
         const socket = io();
-        const peer = new Peer(); // หัวใจสำคัญ: ระบบส่งเสียง Peer-to-Peer
+        const peer = new Peer(); // ระบบส่งเสียง
         let myStream;
         let myPeerId;
         let myName = "";
-        let audioContext, analyser, microphone, javascriptNode; // ตัววัดระดับเสียง
+        
+        // ตัวแปรสำหรับ Visualizer
+        let audioContext, analyser, microphone, javascriptNode;
 
-        // 1. รับ Peer ID ของตัวเองเมื่อเข้าเว็บ
+        // 1. รับ ID เสียงตัวเอง
         peer.on('open', (id) => {
             myPeerId = id;
             console.log("My Peer ID:", id);
         });
 
-        // 2. รับสายเมื่อมีคนโทรมา
+        // 2. รับสายเมื่อเพื่อนโทรมา
         peer.on('call', (call) => {
-            call.answer(myStream); // รับสายและส่งเสียงเรากลับไป
+            call.answer(myStream); 
             call.on('stream', (userStream) => {
                 addAudioStream(userStream, call.peer);
             });
         });
 
+        // ปุ่มเชื่อมต่อ
         document.getElementById('connectBtn').onclick = async () => {
             myName = document.getElementById('username').value.trim();
             if(!myName) return alert("กรุณาใส่ชื่อก่อนครับ!");
 
             try {
-                // ขอไมค์แบบตัดเสียงรบกวน (Pro Feature)
+                // ขอไมค์ (เปิดโหมดตัดเสียงรบกวน)
                 myStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } 
+                    audio: { echoCancellation: true, noiseSuppression: true } 
                 });
                 
-                // เริ่มระบบ Visualizer (ไฟกระพริบ)
+                // เริ่มระบบไฟกระพริบ
                 setupVisualizer(myStream);
 
-                // ส่งชื่อและ ID เสียงไปที่ Server
+                // ส่งข้อมูลไป Server
                 socket.emit('join-voice', { name: myName, peerId: myPeerId });
                 
-                document.getElementById('login-area').style.display = "none";
-                document.getElementById('control-area').style.display = "block";
+                // เปลี่ยนหน้าจอ
+                document.getElementById('login-area').classList.add('hidden');
+                document.getElementById('control-area').classList.remove('hidden');
+
             } catch (e) {
                 alert("เกิดข้อผิดพลาด: กรุณากด 'อนุญาต' ให้ใช้ไมโครโฟน");
+                console.error(e);
             }
         };
 
-        // ระบบโทรหาคนอื่นอัตโนมัติเมื่อได้รายชื่อ
+        // ปุ่มปิดไมค์
+        document.getElementById('muteBtn').onclick = () => {
+            if(myStream) myStream.getAudioTracks()[0].enabled = false;
+            document.getElementById('muteBtn').classList.add('hidden');
+            document.getElementById('unmuteBtn').classList.remove('hidden');
+            document.getElementById('status').innerText = "○ ปิดไมค์อยู่";
+            document.getElementById('status').style.color = "#ef4444";
+            document.getElementById('visualizer').classList.remove('speaking'); // ปิดไฟ
+        };
+
+        // ปุ่มเปิดไมค์
+        document.getElementById('unmuteBtn').onclick = () => {
+            if(myStream) myStream.getAudioTracks()[0].enabled = true;
+            document.getElementById('unmuteBtn').classList.add('hidden');
+            document.getElementById('muteBtn').classList.remove('hidden');
+            document.getElementById('status').innerText = "● ออนไลน์";
+            document.getElementById('status').style.color = "#10b981";
+        };
+
+        // ปุ่มออก
+        document.getElementById('quitBtn').onclick = () => location.reload();
+
+        // อัปเดตรายชื่อและโทรหาคนอื่นอัตโนมัติ
         socket.on('update-list', (players) => {
-            updatePlayerUI(players);
-            
-            // วนลูปโทรหาทุกคนที่อยู่ในห้อง (ยกเว้นตัวเอง)
-            players.forEach(p => {
-                if(p.peerId && p.peerId !== myPeerId) {
-                    // เช็กว่ามีเสียงคนนี้หรือยัง ถ้ายังให้โทรไปหา
-                    if(!document.getElementById(`audio-${p.peerId}`)) {
-                        const call = peer.call(p.peerId, myStream);
-                        call.on('stream', (userStream) => {
-                            addAudioStream(userStream, p.peerId);
-                        });
-                    }
-                }
-            });
-        });
-
-        // ระบบ Spatial Audio (ใกล้ดัง-ไกลเบา) - ของจริงทำงานตรงนี้
-        socket.on('spatial-update', (players) => {
-            const me = Object.values(players).find(p => p.name === myName);
-            if (!me) return;
-
-            Object.values(players).forEach(other => {
-                if (other.name !== myName && other.peerId) {
-                    // คำนวณระยะห่าง (Pythagoras)
-                    const dist = Math.sqrt(Math.pow(me.x - other.x, 2) + Math.pow(me.z - other.z, 2));
-                    
-                    // สูตรเสียง: ระยะ 20 บล็อกคือเงียบกริบ (เปลี่ยนเลข 20 ได้ตามชอบ)
-                    let volume = 1 - (dist / 20);
-                    if (volume < 0) volume = 0;
-                    
-                    // ปรับเสียงเพื่อนคนนั้น
-                    const audioEl = document.getElementById(`audio-${other.peerId}`);
-                    if (audioEl) audioEl.volume = volume;
-                }
-            });
-        });
-
-        function addAudioStream(stream, id) {
-            if(document.getElementById(`audio-${id}`)) return; // ถ้ามีแล้วไม่ต้องสร้างซ้ำ
-            const audio = document.createElement('audio');
-            audio.id = `audio-${id}`;
-            audio.srcObject = stream;
-            audio.autoplay = true; // เล่นเสียงทันที
-            document.getElementById('audio-container').appendChild(audio);
-        }
-
-        function updatePlayerUI(players) {
             const container = document.getElementById('active-players');
             if (players.length === 0) container.innerHTML = "ยังไม่มีคนออนไลน์";
             else {
@@ -188,9 +194,48 @@
                     `<div class="player-item"><div class="dot"></div>${p.name}</div>`
                 ).join('');
             }
+
+            // ไล่โทรหาทุกคน
+            players.forEach(p => {
+                if(p.peerId && p.peerId !== myPeerId) {
+                    if(!document.getElementById(`audio-${p.peerId}`)) {
+                        const call = peer.call(p.peerId, myStream);
+                        call.on('stream', (userStream) => addAudioStream(userStream, p.peerId));
+                    }
+                }
+            });
+        });
+
+        // ระบบ Spatial Audio (ใกล้ดัง ไกลเบา)
+        socket.on('spatial-update', (players) => {
+            const me = Object.values(players).find(p => p.name === myName);
+            if (!me) return;
+
+            Object.values(players).forEach(other => {
+                if (other.name !== myName && other.peerId) {
+                    // คำนวณระยะห่าง
+                    const dist = Math.sqrt(Math.pow(me.x - other.x, 2) + Math.pow(me.z - other.z, 2));
+                    
+                    // สูตรเสียง: ระยะ 20 บล็อกคือไม่ได้ยิน (ปรับเลข 20 ได้)
+                    let volume = 1 - (dist / 20);
+                    if (volume < 0) volume = 0;
+                    
+                    const audioEl = document.getElementById(`audio-${other.peerId}`);
+                    if (audioEl) audioEl.volume = volume;
+                }
+            });
+        });
+
+        function addAudioStream(stream, id) {
+            if(document.getElementById(`audio-${id}`)) return;
+            const audio = document.createElement('audio');
+            audio.id = `audio-${id}`;
+            audio.srcObject = stream;
+            audio.autoplay = true;
+            document.getElementById('audio-container').appendChild(audio);
         }
 
-        // ฟังก์ชันทำไฟกระพริบตอนพูด
+        // ฟังก์ชันทำไฟกระพริบตามเสียง (Visualizer)
         function setupVisualizer(stream) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             analyser = audioContext.createAnalyser();
@@ -207,6 +252,9 @@
             const visualizer = document.getElementById('visualizer');
 
             javascriptNode.onaudioprocess = function() {
+                // เช็กว่าปิดไมค์อยู่ไหม ถ้าปิดไม่ต้องกระพริบ
+                if(myStream && !myStream.getAudioTracks()[0].enabled) return;
+
                 var array = new Uint8Array(analyser.frequencyBinCount);
                 analyser.getByteFrequencyData(array);
                 var values = 0;
@@ -214,25 +262,10 @@
                 for (var i = 0; i < length; i++) values += array[i];
                 var average = values / length;
 
-                // ถ้าเสียงดังเกิน 20 ให้ไฟติด
-                if(average > 20) visualizer.classList.add('speaking');
+                if(average > 10) visualizer.classList.add('speaking');
                 else visualizer.classList.remove('speaking');
             }
         }
-
-        // ปุ่มควบคุมต่างๆ
-        document.getElementById('muteBtn').onclick = () => {
-            myStream.getAudioTracks()[0].enabled = false;
-            document.getElementById('muteBtn').style.display = "none";
-            document.getElementById('unmuteBtn').style.display = "block";
-        };
-        document.getElementById('unmuteBtn').onclick = () => {
-            myStream.getAudioTracks()[0].enabled = true;
-            document.getElementById('unmuteBtn').style.display = "none";
-            document.getElementById('muteBtn').style.display = "block";
-        };
-        document.getElementById('quitBtn').onclick = () => location.reload();
-
     </script>
 </body>
 </html>
