@@ -3,38 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sybtown Voice Pro</title>
+    <title>Sybtown Proximity Voice</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
-        .card { background: #1e293b; padding: 30px; border-radius: 20px; width: 350px; text-align: center; border: 2px solid #10b981; box-shadow: 0 20px 25px rgba(0,0,0,0.5); }
+        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: #1e293b; padding: 30px; border-radius: 20px; width: 350px; text-align: center; border: 2px solid #10b981; }
         h1 { color: #10b981; margin-bottom: 20px; font-size: 24px; }
-        input { width: 100%; padding: 12px; border-radius: 10px; border: none; margin-bottom: 15px; font-size: 16px; background: #0f172a; color: white; outline: none; }
-        .btn { padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; margin-bottom: 10px; }
+        input { width: 100%; padding: 12px; border-radius: 10px; border: none; margin-bottom: 10px; background: #0f172a; color: white; }
+        .btn { padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
         .btn-join { background: #10b981; color: white; }
         .btn-mute { background: #f59e0b; color: white; }
-        .btn-unmute { background: #3b82f6; color: white; }
         .btn-quit { background: #ef4444; color: white; margin-top: 10px; }
-        #status { margin: 15px 0; font-weight: bold; font-size: 14px; }
-        #player-list { margin-top: 20px; text-align: left; background: #0f172a; padding: 15px; border-radius: 10px; font-size: 13px; max-height: 120px; overflow-y: auto; }
-        .controls { display: none; }
+        .hidden { display: none; }
+        #player-list { margin-top: 20px; text-align: left; background: #0f172a; padding: 15px; border-radius: 10px; font-size: 13px; max-height: 150px; overflow-y: auto; }
     </style>
 </head>
 <body>
     <div class="card">
         <h1>🎤 Sybtown Voice</h1>
         <div id="login-area">
-            <input id="username" type="text" placeholder="ชื่อในเกม (Xbox)...">
-            <button id="connectBtn" class="btn btn-join">เข้าสู่ระบบเสียง</button>
+            <input id="roomKey" type="text" placeholder="ใส่รหัสห้อง (Room Key)...">
+            <input id="username" type="text" placeholder="ระบุชื่อในเกม (Xbox)...">
+            <button id="connectBtn" class="btn btn-join">เชื่อมต่อระบบเสียง</button>
         </div>
-        <div id="control-area" class="controls">
+
+        <div id="control-area" class="hidden">
             <button id="muteBtn" class="btn btn-mute">ปิดไมค์ (Mute)</button>
-            <button id="unmuteBtn" class="btn btn-unmute" style="display:none;">เปิดไมค์ (Unmute)</button>
-            <button id="quitBtn" class="btn btn-quit">ยกเลิกการเชื่อมต่อ</button>
+            <button id="quitBtn" class="btn btn-quit">ออกจากการเชื่อมต่อ</button>
+            <p id="status" style="color: #10b981; margin-top: 15px; font-weight: bold;">● ออนไลน์</p>
         </div>
-        <p id="status" style="color: #64748b;">สถานะ: รอยืนยันตัวตน</p>
+
+        <div id="player-list">
+            <p style="color: #64748b; font-size: 11px; margin-bottom: 8px;">ผู้เล่นในห้องนี้:</p>
+            <div id="active-players">ยังไม่มีใครออนไลน์</div>
+        </div>
+    </div>
+
+    <div id="audio-container" style="display:none;"></div>
+
+    <script>
+        const socket = io();
+        const peer = new Peer();
+        let myStream, myPeerId, myName, myRoom;
+
+        peer.on('open', id => myPeerId = id);
+        
+        peer.on('call', call => {
+            call.answer(myStream);
+            call.on('stream', stream => addAudioStream(stream, call.peer));
+        });
+
+        document.getElementById('connectBtn').onclick = async () => {
+            myName = document.getElementById('username').value.trim();
+            myRoom = document.getElementById('roomKey').value.trim();
+            if(!myName || !myRoom) return alert("ใส่ชื่อและรหัสห้องด้วย!");
+
+            try {
+                myStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                socket.emit('join-room', { name: myName, peerId: myPeerId, roomKey: myRoom });
+                
+                document.getElementById('login-area').classList.add('hidden');
+                document.getElementById('control-area').classList.remove('hidden');
+            } catch (e) { alert("อนุญาตใช้ไมค์ด้วย!"); }
+        };
+
+        socket.on('update-list', list => {
+            const container = document.getElementById('active-players');
+            container.innerHTML = list.map(p => `<div>🔊 ${p.name}</div>`).join('');
+            
+            list.forEach(p => {
+                if(p.peerId && p.peerId !== myPeerId && !document.getElementById(`audio-${p.peerId}`)) {
+                    const call = peer.call(p.peerId, myStream);
+                    call.on('stream', stream => addAudioStream(stream, p.peerId));
+                }
+            });
+        });
+
+        socket.on('spatial-update', players => {
+            const me = Object.values(players).find(p => p.name === myName);
+            if (!me) return;
+            Object.values(players).forEach(other => {
+                const audio = document.getElementById(`audio-${other.peerId}`);
+                if (audio && other.name !== myName) {
+                    const dist = Math.sqrt(Math.pow(me.x - other.x, 2) + Math.pow(me.z - other.z, 2));
+                    let vol = 1 - (dist / 15); // ระยะ 15 บล็อกคือเงียบ
+                    audio.volume = vol < 0 ? 0 : vol;
+                }
+            });
+        });
+
+        function addAudioStream(stream, id) {
+            if(document.getElementById(`audio-${id}`)) return;
+            const audio = document.createElement('audio');
+            audio.id = `audio-${id}`;
+            audio.srcObject = stream;
+            audio.autoplay = true;
+            document.getElementById('audio-container').appendChild(audio);
+        }
+
+        document.getElementById('muteBtn').onclick = () => {
+            const enabled = myStream.getAudioTracks()[0].enabled;
+            myStream.getAudioTracks()[0].enabled = !enabled;
+            document.getElementById('muteBtn').innerText = enabled ? "เปิดไมค์ (Unmute)" : "ปิดไมค์ (Mute)";
+            document.getElementById('status').innerText = enabled ? "○ ปิดไมค์" : "● ออนไลน์";
+        };
+        document.getElementById('quitBtn').onclick = () => location.reload();
+    </script>
+</body>
+</html>        <p id="status" style="color: #64748b;">สถานะ: รอยืนยันตัวตน</p>
         <div id="player-list">
             <p style="color: #10b981; margin-bottom: 5px; font-size: 11px;">ผู้เล่นที่ออนไลน์:</p>
             <div id="active-players">ยังไม่มีคนออนไลน์</div>
